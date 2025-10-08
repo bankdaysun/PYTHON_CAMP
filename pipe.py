@@ -4,26 +4,25 @@ import numpy as np
 import pyautogui
 import time
 
-# ตั้งค่าการตรวจจับมือ
 mp_hands = mp.solutions.hands
 mp_draw = mp.solutions.drawing_utils
 hands = mp_hands.Hands(min_detection_confidence=0.7, min_tracking_confidence=0.7)
 
-# กำหนดปุ่มคีย์บอร์ด
+
 keys = [["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "Backspace"],
         ["A", "S", "D", "F", "G", "H", "J", "K", "L", "Enter"],
         ["Shift", "Z", "X", "C", "V", "B", "N", "M", "Space"]]
 
-# ตั้งค่าดีเลย์ของ PyAutoGUI
-pyautogui.PAUSE = 0.1
-shift_active = False  # ตัวแปรเก็บสถานะ Shift
 
-# กำหนดตำแหน่งและขนาดปุ่ม
-KEYBOARD_X = 200  # ตำแหน่ง X (ซ้าย-ขวา)
-KEYBOARD_Y = 400  # ตำแหน่ง Y (ขึ้น-ลง)
-KEY_WIDTH = 80    # ความกว้างของปุ่ม (ค่าเพิ่ม = ปุ่มใหญ่ขึ้น)
-KEY_HEIGHT = 100  # ความสูงของปุ่ม (ค่าเพิ่ม = ปุ่มสูงขึ้น)
-SPECIAL_KEY_WIDTH = 160  # ความกว้างปุ่มพิเศษ เช่น Space, Backspace, Enter, Shift
+pyautogui.PAUSE = 0.1
+shift_active = False
+
+
+KEYBOARD_X = 200 
+KEYBOARD_Y = 400  
+KEY_WIDTH = 80
+KEY_HEIGHT = 100 
+SPECIAL_KEY_WIDTH = 160
 
 # ฟังก์ชันวาดปุ่มคีย์บอร์ด
 def draw_keyboard(img, key_list):
@@ -42,7 +41,6 @@ def draw_keyboard(img, key_list):
         y_offset += KEY_HEIGHT + 10
     return key_positions
 
-# ฟังก์ชันตรวจจับการกดปุ่ม
 def check_key_press(finger_pos, key_positions):
     x, y = finger_pos
     for key, top_left, bottom_right in key_positions:
@@ -50,16 +48,14 @@ def check_key_press(finger_pos, key_positions):
             return key
     return None
 
-# ตรวจจับว่ามีการกดนิ้วโป้งหรือไม่
 def is_thumb_pressed(index_finger, thumb, threshold=50):
     """ ตรวจจับว่าระยะระหว่างนิ้วชี้และนิ้วโป้งเข้าใกล้กันหรือไม่ """
     distance = np.linalg.norm(np.array(index_finger) - np.array(thumb))
     return distance < threshold  # หากระยะใกล้กว่า threshold ถือว่ากดปุ่ม
 
-# เปิดกล้องและตั้งค่าความละเอียดเป็น 720p
 cap = cv2.VideoCapture(0)
-cap.set(3, 1280)  # ความกว้าง 1280
-cap.set(4, 720)   # ความสูง 720
+cap.set(3, 1280)
+cap.set(4, 720)
 
 last_key = None
 last_press_time = 0
@@ -69,19 +65,17 @@ while cap.isOpened():
     if not ret:
         break
 
-    frame = cv2.flip(frame, 1)  # พลิกภาพให้เหมือนกระจก
-    frame = cv2.resize(frame, (1280, 720))  # ปรับขนาดเป็น 720p
+    frame = cv2.flip(frame, 1)
+    frame = cv2.resize(frame, (1280, 720))
     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     results = hands.process(rgb_frame)
 
-    # วาดคีย์บอร์ด
     key_positions = draw_keyboard(frame, keys)
 
     if results.multi_hand_landmarks:
         for hand_landmarks in results.multi_hand_landmarks:
             mp_draw.draw_landmarks(frame, hand_landmarks, mp_hands.HAND_CONNECTIONS)
 
-            # ดึงตำแหน่งปลายนิ้วชี้ (Landmark 8) และนิ้วโป้ง (Landmark 4)
             h, w, _ = frame.shape
             index_finger_tip = hand_landmarks.landmark[8]
             thumb_tip = hand_landmarks.landmark[4]
@@ -89,22 +83,17 @@ while cap.isOpened():
             x_index, y_index = int(index_finger_tip.x * w), int(index_finger_tip.y * h)
             x_thumb, y_thumb = int(thumb_tip.x * w), int(thumb_tip.y * h)
 
-            # วาดจุดที่นิ้วชี้และนิ้วโป้ง
             cv2.circle(frame, (x_index, y_index), 10, (0, 255, 0), -1)
             cv2.circle(frame, (x_thumb, y_thumb), 10, (0, 0, 255), -1)
 
-            # ตรวจจับว่าปลายนิ้วชี้อยู่บนปุ่มไหน
             pressed_key = check_key_press((x_index, y_index), key_positions)
 
-            # ตรวจจับว่ามีนิ้วโป้งกดหรือไม่
             if pressed_key and is_thumb_pressed((x_index, y_index), (x_thumb, y_thumb)):
-                # ป้องกันการกดซ้ำถี่เกินไป
                 if pressed_key != last_key or time.time() - last_press_time > 0.5:
-                    print(f"Pressed: {pressed_key}")  # แสดงผลบน Terminal
+                    print(f"Pressed: {pressed_key}")
                     last_key = pressed_key
                     last_press_time = time.time()
 
-                    # การพิมพ์ลงโปรแกรมอื่น
                     if pressed_key == "Space":
                         pyautogui.press("space")
                     elif pressed_key == "Enter":
@@ -112,14 +101,13 @@ while cap.isOpened():
                     elif pressed_key == "Backspace":
                         pyautogui.press("backspace")
                     elif pressed_key == "Shift":
-                        shift_active = not shift_active  # สลับโหมด Shift
+                        shift_active = not shift_active
                     else:
                         if shift_active:
                             pyautogui.press(pressed_key.upper())
                         else:
                             pyautogui.press(pressed_key.lower())
 
-                    # ไฮไลท์ปุ่มที่ถูกกด
                     cv2.rectangle(frame, (x_index-20, y_index-20), (x_index+20, y_index+20), (0, 255, 255), -1)
 
     cv2.imshow("Virtual Keyboard", frame)
@@ -129,3 +117,4 @@ while cap.isOpened():
 
 cap.release()
 cv2.destroyAllWindows()
+
